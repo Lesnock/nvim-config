@@ -95,6 +95,28 @@ require('packer').startup(function(use)
       'nvim-tree/nvim-web-devicons',
     }
   }
+
+  -- Autoclose
+  use 'm4xshen/autoclose.nvim'
+
+
+  -- Debugging
+  use "mfussenegger/nvim-dap"
+  use "rcarriga/nvim-dap-ui"
+  use "theHamsta/nvim-dap-virtual-text"
+  use "nvim-telescope/telescope-dap.nvim"
+
+  -- Startify
+  use 'mhinz/vim-startify'
+
+  -- Breadcrumb
+  use {
+    'SmiteshP/nvim-navic',
+    requires = 'neovim/nvim-lspconfig'
+  }
+
+  -- Statusline
+  use 'rebelot/heirline.nvim'
 end)
 
 -- When we are bootstrapping a configuration, it doesn't
@@ -109,6 +131,9 @@ if is_bootstrap then
   print '=================================='
   return
 end
+
+
+require('heirline').setup({})
 
 -- Automatically source and re-compile packer whenever you save this init.lua
 local packer_group = vim.api.nvim_create_augroup('Packer', { clear = true })
@@ -162,6 +187,18 @@ vim.g.maplocalleader = ' '
 -- See `:help vim.keymap.set()`
 vim.keymap.set({ 'n', 'v' }, '<Space>', '<Nop>', { silent = true })
 
+-- Moving lines
+vim.keymap.set('n', '<A-j>', ':m .+1<CR>==', { silent = true })
+vim.keymap.set('n', '<A-k>', ':m .-2<CR>==', { silent = true })
+vim.keymap.set('i', '<A-j>', '<Esc>:m .+1<CR>==gi', { silent = true })
+vim.keymap.set('i', '<A-k>', "<Esc>:m .-2<CR>==gi", { silent = true })
+vim.keymap.set('v', '<A-j>', ":m '>+1<CR>gv=gv", { silent = true })
+vim.keymap.set('v', '<A-k>', ":m '<-2<CR>gv=gv", { silent = true })
+
+-- Duplicate line
+vim.keymap.set('n', '<A-K>', 'yypk', { silent = true })
+vim.keymap.set('n', '<A-J>', 'yyp', { silent = true })
+
 -- Remap for dealing with word wrap
 vim.keymap.set('n', 'k', "v:count == 0 ? 'gk' : 'k'", { expr = true, silent = true })
 vim.keymap.set('n', 'j', "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = true })
@@ -179,13 +216,16 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 
 -- Set lualine as statusline
 -- See `:help lualine.txt`
+
+local navic = require('nvim-navic')
+
 require('lualine').setup {
   options = {
     icons_enabled = false,
     theme = 'tokyonight',
     component_separators = '|',
     section_separators = '',
-  },
+  }, 
 }
 
 -- Enable Comment.nvim
@@ -356,6 +396,11 @@ local on_attach = function(_, bufnr)
   vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
     vim.lsp.buf.format()
   end, { desc = 'Format current buffer with LSP' })
+
+  if _.server_capabilities.documentSymbolProvider then
+    local navic = require('nvim-navic')
+    navic.attach(_, bufnr)
+  end
 end
 
 -- Enable the following language servers
@@ -364,7 +409,9 @@ end
 --  Add any additional override configuration in the following tables. They will be passed to
 --  the `settings` field of the server config. You must look up that documentation yourself.
 local servers = {
-  -- clangd = {},
+  clangd = {
+    on_attach = on_attach
+  },
   -- gopls = {},
   -- pyright = {},
   -- rust_analyzer = {},
@@ -377,6 +424,8 @@ local servers = {
     },
   },
 }
+
+require('nvim-navic').setup({})
 
 -- Setup neovim lua configuration
 require('neodev').setup()
@@ -496,12 +545,98 @@ local function single_click_edit(node)
   end, 10)
 end
 
+-- Open file as a tab
+local function open_tab_silent(node)
+  local api = require('nvim-tree.api')
+  api.node.open.tab(node)
+  api.tree.open()
+  vim.cmd('wincmd l')
+end
+
 require('nvim-tree').setup({
   view = {
     mappings = {
       list = {
-        { key = "<LeftRelease>", action= "single_click_edit", action_cb = single_click_edit},
+        { key = "<LeftRelease>", action = "single_click_edit", action_cb = single_click_edit },
+        { key = "t", action = "open_tab_silent", action_cb = open_tab_silent },
       }
     }
   }
 });
+
+vim.keymap.set('n', '<C-o>', ':NvimTreeToggle<CR>', { silent = true })
+
+-- Autoclose
+require('autoclose').setup({})
+
+-- Window Resizer
+
+-- Debugging
+local dap = require('dap')
+local dapui = require('dapui')
+
+dapui.setup()
+
+dap.adapters.php = {
+  type = 'executable',
+  command = 'node',
+  args = { '/home/caio/vscode-php-debug/out/phpDebug.js' }
+}
+
+dap.configurations.php = {
+  {
+    type = 'php',
+    request = 'launch',
+    name = 'Listen for Xdebug',
+    port = 9003,
+  }
+}
+
+vim.keymap.set('n', '<F5>', dap.continue)
+vim.keymap.set('n', '<F10>', dap.step_over)
+vim.keymap.set('n', '<F11>', dap.step_into)
+vim.keymap.set('n', '<F12', dap.step_out)
+vim.keymap.set('n', '<leader>b', dap.toggle_breakpoint)
+vim.keymap.set('n', '<leader>dr', dap.repl.open, { desc = 'Open [D]ap [R]epl' })
+vim.keymap.set('n', '<leader>du', dapui.open, { desc = 'Open [D]ap [U]I' })
+vim.keymap.set('n', '<leader>dc', dapui.close, { desc = 'Open [D]ap UI [C]lose' })
+
+-- Nvim Navic
+require('nvim-navic').setup {
+  icons = {
+    File          = " ",
+    Module        = " ",
+    Namespace     = " ",
+    Package       = " ",
+    Class         = " ",
+    Method        = " ",
+    Property      = " ",
+    Field         = " ",
+    Constructor   = " ",
+    Enum          = "練",
+    Interface     = "練",
+    Function      = " ",
+    Variable      = " ",
+    Constant      = " ",
+    String        = " ",
+    Number        = " ",
+    Boolean       = "◩ ",
+    Array         = " ",
+    Object        = " ",
+    Key           = " ",
+    Null          = "ﳠ ",
+    EnumMember    = " ",
+    Struct        = " ",
+    Event         = " ",
+    Operator      = " ",
+    TypeParameter = " ",
+  },
+  highlight = false,
+  separator = " > ",
+  depth_limit = 0,
+  depth_limit_indicator = "..",
+  safe_output = true
+}
+
+vim.o.winbar = "%f%{%v:lua.require'nvim-navic'.get_location()%}"
+
