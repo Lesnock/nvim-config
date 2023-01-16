@@ -484,4 +484,24 @@ vim.keymap.set({ 't' }, '<Esc>', '<C-\\><C-n>:ToggleTermToggleAll<CR>', { desc =
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 vim.opt.termguicolors = true
-require('nvim-tree').setup()
+
+-- Open folders in NvimTree with 1 click
+local function single_click_edit(node)
+  vim.defer_fn(function ()
+    local win = vim.api.nvim_get_current_win()
+    local view = require "nvim-tree.view"
+    if view.get_winnr() ~= win then return end
+    local actions = require'nvim-tree.actions.dispatch'
+    actions.dispatch("edit")
+  end, 10)
+end
+
+require('nvim-tree').setup({
+  view = {
+    mappings = {
+      list = {
+        { key = "<LeftRelease>", action= "single_click_edit", action_cb = single_click_edit},
+      }
+    }
+  }
+});
