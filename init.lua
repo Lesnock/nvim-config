@@ -186,6 +186,7 @@ vim.g.maplocalleader = ' '
 -- Keymaps for better default experience
 -- See `:help vim.keymap.set()`
 vim.keymap.set({ 'n', 'v' }, '<Space>', '<Nop>', { silent = true })
+vim.keymap.set('n', '<C-[', '<Esc>')
 
 -- Moving lines
 vim.keymap.set('n', '<A-j>', ':m .+1<CR>==', { silent = true })
@@ -576,6 +577,7 @@ local dap = require('dap')
 local dapui = require('dapui')
 
 dapui.setup()
+require('nvim-dap-virtual-text').setup({})
 
 dap.adapters.php = {
   type = 'executable',
